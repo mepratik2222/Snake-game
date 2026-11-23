@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Snake Game</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#fff;overscroll-behavior:none;touch-action:none}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:env(safe-area-inset-top) 8px env(safe-area-inset-bottom)}
+  #hud{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:18px}
+  #hud span.k{font-size:12px;font-weight:500;opacity:.65;margin-right:4px}
+  #board{position:relative}
+  canvas{display:block;width:100%;height:100%;border-radius:12px;touch-action:none}
+  #under{position:relative;height:120px}
+  #plan,#pad{position:absolute;inset:0;visibility:hidden}
+  #plan{display:flex;flex-direction:column;gap:6px;justify-content:flex-start}
+  #pad{display:flex;gap:8px;align-items:stretch}
+  #pad .mid{flex:1.5;display:flex;flex-direction:column;gap:8px}
+  #pad .mid .key{flex:1;height:auto}
+  #pad>.key{flex:1;height:auto}
+  #pad.auto .key{pointer-events:none}
+  #plan.show,#pad.show{visibility:visible}
+  .key{flex:1;height:76px;border-radius:16px;border:0;border-bottom:6px solid #000;background:linear-gradient(180deg,#1c1c1c,#050505);color:#fff;font:800 26px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.5);touch-action:none}
+  .key.s{flex:1;background:linear-gradient(180deg,#e0653c,#b8421f);border-bottom-color:#4a1708}
+  .key.w{flex:1.5;background:linear-gradient(180deg,#2fbf71,#1f8f52);border-bottom-color:#0a3d22}
+  .key.down{transform:translateY(4px);border-bottom-width:2px;background:linear-gradient(180deg,#ffc94d,#f0a020);border-bottom-color:#8a5a0a;color:#3a2400}
+  #hint{font-size:13px;line-height:1.45;opacity:.85;text-align:center}
+  #plan .row{display:flex;gap:10px}
+  .tb{flex:1;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.2);color:#fff;font:700 16px system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:11px 8px;border-radius:14px}
+  .tb:active{transform:scale(.97)}
+  .tb.go{background:linear-gradient(135deg,#35a7ff,#7b5cff);border-color:transparent}
+  .tb:disabled{opacity:.4}
+  button.alt{background:rgba(255,255,255,.1);box-shadow:none;border:1.5px solid rgba(255,255,255,.25);font-size:17px;padding:11px 26px}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px;background:rgba(5,8,30,.86);border-radius:12px}
+  .ov.hide{display:none}
+  .ov button.big{padding:11px 26px;font-size:18px}
+  h1{margin:0;font-size:36px;font-weight:800;line-height:1.2;background:linear-gradient(90deg,#4ade80,#35a7ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  h2{margin:0;font-size:34px;font-weight:800;color:#ff5d73}
+  p{margin:0;font-size:15px;opacity:.85;line-height:1.6;max-width:290px}
+  .score{font-size:46px;font-weight:800;color:#ffd166}
+  button.big{background:linear-gradient(135deg,#35a7ff,#7b5cff);border:0;color:#fff;font:800 20px system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:14px 34px;border-radius:30px;box-shadow:0 6px 24px rgba(53,167,255,.4)}
+  button.big:active{transform:scale(.96)}
+  #ctl{display:none;gap:6px}
+  #ctl.show{display:flex}
+  #ctl button{background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);color:#fff;font:800 15px system-ui,sans-serif;border-radius:10px;padding:4px 10px;min-width:38px}
+  .row2{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;max-width:300px;font-size:16px;font-weight:700}
+  .sw{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:300px}
+  .sw i{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.25);display:block}
+  .sw i.sel{border-color:#fff;box-shadow:0 0 0 2px #35a7ff}
+  .sw i.auto{display:flex;align-items:center;justify-content:center;font:800 11px system-ui;font-style:normal;background:rgba(255,255,255,.12);border-radius:17px;width:auto;padding:0 12px}
+  .lbl{font-size:13px;opacity:.7;margin-top:2px}
+  #settings{touch-action:pan-y;-webkit-overflow-scrolling:touch;gap:8px;overflow-y:auto;justify-content:flex-start;padding-top:14px}
+  #settings .sw i{width:30px;height:30px}
+  #settings .sw i.auto{width:auto;height:30px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div><span class="k">🍓 Fruits</span><span id="score">0</span></div>
+    <div><span class="k">📏 Length</span><span id="len">4</span></div>
+    <div id="ctl"><button id="pauseBtn" aria-label="Pause">⏸</button><button id="exitBtn" aria-label="Exit">✕ Exit</button></div>
+  </div>
+
+  <div id="board">
+    <canvas id="c"></canvas>
+    <div id="menu" class="ov">
+      <h1>Snake Game</h1>
+      <p>Eat fruits to grow. The snake changes colour every 5 fruits.</p>
+      <button class="big" id="startFree">🎮 New game</button>
+      <button class="big alt" id="openSet">⚙️ Settings</button>
+    </div>
+    <div id="settings" class="ov hide">
+      <button class="tb" id="setTop" style="flex:none;align-self:flex-start">← Back</button>
+      <h1 style="font-size:30px">Settings</h1>
+      <div class="row2"><span>🔊 Game sound</span><button class="tb" id="sndBtn" style="flex:none;min-width:80px">On</button></div>
+      <div class="lbl">Background theme</div><div class="sw" id="bgSw"></div>
+      <div class="lbl">Fruits</div><div class="sw" id="frSw"></div>
+      <div class="lbl">Snake style</div><div class="sw" id="stSw"></div>
+      <div class="lbl">Snake colour</div><div class="sw" id="snSw"></div>
+      <button class="big" id="setBack">Back</button>
+    </div>
+    <div id="over" class="ov hide">
+      <h2 id="title">Game over</h2>
+      <div>Your length</div>
+      <div class="score" id="final">0</div>
+      <p id="msg"></p>
+      <button class="big" id="again">Play again</button>
+      <button class="big alt" id="menuBtn">Menu</button>
+    </div>
+  </div>
+
+  <div id="under">
+    <div id="plan">
+      <div id="hint"></div>
+      <div class="row">
+        <button class="tb" id="clear">🗑 Clear</button>
+        <button class="tb go" id="go">▶ Start</button>
+      </div>
+    </div>
+    <div id="pad">
+      <button class="key" data-dx="-1" data-dy="0" aria-label="Left">◀</button>
+      <div class="mid">
+        <button class="key" data-dx="0" data-dy="-1" aria-label="Up">▲</button>
+        <button class="key" data-dx="0" data-dy="1" aria-label="Down">▼</button>
+      </div>
+      <button class="key" data-dx="1" data-dy="0" aria-label="Right">▶</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+'use strict';
+const N=14,CS=26,SZ=N*CS;
+const $=id=>document.getElementById(id);
+const cv=$('c'),ctx=cv.getContext('2d'),boardEl=$('board'),appEl=$('app'),hud=$('hud');
+const dpr=Math.min(window.devicePixelRatio||1,2.5);
+
+function resize(){
+  const w=window.innerWidth,h=window.innerHeight;
+  const size=Math.max(240,Math.min(w-16,h-195,600));
+  boardEl.style.width=size+'px';boardEl.style.height=size+'px';
+  hud.style.width=size+'px';$('under').style.width=size+'px';
+  cv.width=Math.round(size*dpr);cv.height=Math.round(size*dpr);
+  ctx.setTransform(cv.width/SZ,0,0,cv.height/SZ,0,0);
+}
+window.addEventListener('resize',resize);resize();
+
+/* ---- storage ---- */
+
+/* ---- audio ---- */
+let actx=null,muted=false;
+try{muted=localStorage.getItem('snk_mute')==='1'}catch(e){}
+function initAudio(){
+  if(!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){actx=null}}
+  if(actx&&actx.state==='suspended'){try{actx.resume()}catch(e){}}
+}
+let noiseBuf=null;
+function getNoise(){
+  if(noiseBuf||!actx)return noiseBuf;
+  const len=Math.floor(actx.sampleRate*.08);
+  noiseBuf=actx.createBuffer(1,len,actx.sampleRate);
+  const d=noiseBuf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+  return noiseBuf;
+}
+function clickOne(t,vol,tone,fm){
+  const src=actx.createBufferSource();src.buffer=getNoise();
+  const bp=actx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=(3000+Math.random()*1400)*fm;bp.Q.value=1.1;
+  const g=actx.createGain();
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.0015);g.gain.exponentialRampToValueAtTime(.0001,t+.045);
+  src.connect(bp);bp.connect(g);g.connect(actx.destination);src.start(t);src.stop(t+.06);
+  const o=actx.createOscillator(),og=actx.createGain();o.type='sine';
+  o.frequency.setValueAtTime(tone*(.95+Math.random()*.1),t);
+  o.frequency.exponentialRampToValueAtTime(tone*.55,t+.07);
+  og.gain.setValueAtTime(vol*.6,t);og.gain.exponentialRampToValueAtTime(.0001,t+.08);
+  o.connect(og);og.connect(actx.destination);o.start(t);o.stop(t+.09);
+}
+// mechanical keyboard "click-clack": key press + softer release
+function keyClick(){
+  if(muted||!actx)return;
+  try{const t=actx.currentTime;clickOne(t,.32,210,1);clickOne(t+.07,.14,270,1.25);}catch(e){}
+}
+function beep(f,d,type,vol,slide){
+  if(muted||!actx)return;
+  try{
+    const o=actx.createOscillator(),g=actx.createGain(),t=actx.currentTime;
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,f+slide),t+d);
+    g.gain.setValueAtTime(vol||.08,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d);
+  }catch(e){}
+}
+
+/* ---- palettes ---- */
+const SNAKES=[
+  {o:'#6e420a',i:'#c4841c',d:'rgba(16,8,0,.9)',h:'#f5a623',dots:true},                         // golden leopard
+  {o:'#0a86b3',i:'#26e6ff',h:'#b6f6ff',glow:'#19e0ff',dots:false},                             // neon cyan, plain
+  {o:'#a3205f',i:'#ff6fb5',d:'rgba(80,6,40,.85)',h:'#ffa8d4',glow:'#ff3fa0',dots:true},        // glowing pink, dots
+  {o:'#1f9a2c',i:'#86ff4d',h:'#d6ffb3',glow:'#7dff4f',dots:false},                             // lime, plain
+  {o:'#5a2fa8',i:'#a66bff',d:'rgba(30,10,80,.85)',h:'#d2b5ff',glow:'#9d5cff',dots:true},      // violet, dots
+  {o:'#c2410c',i:'#ff9a2e',h:'#ffd9a1',glow:'#ff7a1a',dots:false},                             // fire orange, plain
+  {o:'#1b5fbf',i:'#3fa9ff',d:'rgba(6,24,90,.85)',h:'#7cc4ff',glow:'#3fa9ff',dots:true},       // blue, dots
+  {o:'#b8860b',i:'#ffd84d',h:'#fff2b3',glow:'#ffd34d',dots:false},                             // gold, plain
+  {o:'#0f8f78',i:'#2affc6',d:'rgba(0,50,40,.85)',h:'#b9ffec',glow:'#2affc6',dots:true},       // mint, dots
+  {rainbow:true}                                                                                // animated rainbow, plain
+];
+const BORDERS=['#3a2cff','#2ecc40','#ffd400','#ff2d2d','#b84dff','#2de2e6'];
+let pal=0,bordIdx=0;
+/* ---- settings (saved on the phone) ---- */
+const BGS=[
+  {n:'Black',a:'#000',b:'#000',g:null},
+  {n:'Midnight',a:'#0a1130',b:'#0a1130',g:'rgba(255,255,255,.05)'},
+  {n:'Forest',a:'#0b2414',b:'#0e3019',g:'rgba(255,255,255,.05)'},
+  {n:'Purple',a:'#1b0f33',b:'#24143f',g:'rgba(255,255,255,.05)'},
+  {n:'Sand',a:'#3a2f1c',b:'#46391f',g:'rgba(255,255,255,.06)'},
+  {n:'Checker',a:'#101820',b:'#16222e',g:null,check:true}
+];
+let paused=false,faceStyle='normal',eatAt=0,fruitMode='normal',bgIdx=0,fixedPal=-1,snStyle='auto';
+try{bgIdx=Math.min(BGS.length-1,parseInt(localStorage.getItem('snk_bg')||'0',10)||0);fixedPal=parseInt(localStorage.getItem('snk_pal')||'-1',10);if(isNaN(fixedPal))fixedPal=-1;snStyle=localStorage.getItem('snk_style')||'auto';fruitMode=localStorage.getItem('snk_fruit')==='one'?'one':'normal';}catch(e){}
+
+/* ---- state ---- */
+let snake,dir,queue,apples,acc,stepT,removedTail,nextId,score,alive,state='menu',flash=0,last=0;
+let mode='free',route=[],ridx=0,path=[],pendingGrow=0,planDrag=false,ghosts=[],offTotal=0,keysMode=false,wHeld=false,lastDir={x:1,y:0},rec=null,replaying=false,rpos=0,curMove=null,hist=[],sHeld=false,autoMode=false,autoTarget=null,autoStyle='mix',autoIdle=0;
+const BASE=.11;
+const AUTO_STEP=.12;           // seconds per step in Auto mode
+const AUTO_DECAY=Math.round(9/AUTO_STEP);          // fruit count on board falls off with time
+const AUTO_TAIL=Math.round(120/AUTO_STEP);          // last 120 s (1200 steps of 0.10 s): exactly one fruit on board
+let autoMinM=8,autoSteps=0,autoTotal=3750; // planned match length in steps (0.10 s each)
+
+function resetGame(){
+  replaying=false;hist=[];sHeld=false;autoTarget=null;autoIdle=0;autoSteps=0;autoMinM=5+Math.floor(Math.random()*5);autoTotal=Math.round((pickTarget()+(fruitMode==='one'?10:28))/AUTO_STEP);queue=[];apples=[];ghosts=[];offTotal=0;acc=0;removedTail=null;score=0;alive=true;flash=0;pendingGrow=0;ridx=0;pal=fixedPal>=0?fixedPal:0;bordIdx=0;
+  if(mode==='route'){
+    const a=path[0],b=path[1];
+    snake=[{x:a.x,y:a.y,id:0}];nextId=1;dir={x:b.x-a.x,y:b.y-a.y};pendingGrow=3;route=path.slice();
+  }else{
+    snake=[];
+    for(let i=0;i<4;i++)snake.push({x:6-i,y:10,id:i});
+    nextId=4;dir={x:1,y:0};
+    if(autoMode){
+      autoCycle=makeCycle();const L=autoCycle.length;
+      autoIdx=3+Math.floor(Math.random()*(L-3));
+      snake=[0,1,2,3].map(i=>{const c=autoCycle[(autoIdx-i+L)%L];return {x:c.x,y:c.y,id:i};});
+      const nx2=autoCycle[(autoIdx+1)%L];dir={x:nx2.x-snake[0].x,y:nx2.y-snake[0].y};
+    }
+  }
+  lastDir=dir;wHeld=false;
+  if(mode==='route')fillRouteFruits();else fillFreeFruits();
+  rec=(mode==='free')?{apples0:apples.map(a=>({x:a.x,y:a.y,t:a.t,on:a.on})),snake0:snake.map(c=>({x:c.x,y:c.y,id:c.id})),dir0:{x:dir.x,y:dir.y},moves:[]}:null;
+  updateHud();
+}
+let startFruit=1;
+// target length of an Auto match in seconds: 5:20 - 6:30, and never close to the previous match's length
+function pickTarget(){
+  let prev=0;try{prev=parseFloat(localStorage.getItem('snk_prevT')||'0')||0}catch(e){}
+  let t=350;
+  for(let i=0;i<20;i++){t=320+Math.random()*70;if(Math.abs(t-prev)>=25)break;}
+  try{localStorage.setItem('snk_prevT',String(t))}catch(e){}
+  return t;
+}
+function fillFreeFruits(){
+  const occ=new Set(snake.map(c=>c.x+','+c.y)),cells=[];
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(!occ.has(x+','+y))cells.push({x,y});
+  for(let i=cells.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cells[i],cells[j]]=[cells[j],cells[i]];}
+  if(autoMode&&fruitMode==='one'&&autoCycle.length){     // first fruit close to the snake: no long wandering at the start
+    const hd=snake[0],Ln=autoCycle.length;let c=null;
+    for(let k=0,o=10+Math.floor(Math.random()*14);k<60&&!c;k++){const q=autoCycle[(autoIdx+o+k)%Ln];if(Math.abs(q.x-hd.x)+Math.abs(q.y-hd.y)>=6)c=q;}
+    if(!c)c=autoCycle[(autoIdx+12)%Ln];
+    apples.push({x:c.x,y:c.y,on:true,t:Math.floor(Math.random()*7)});startFruit=1;return;
+  }
+  const n=fruitMode==='one'?1:Math.floor(cells.length*.35);
+  for(let i=0;i<n;i++)apples.push({x:cells[i].x,y:cells[i].y,on:true,t:Math.floor(Math.random()*7)});
+  startFruit=Math.max(1,apples.length);
+}
+function fillRouteFruits(){
+  const st=route[0],onR=new Set(route.map(c=>c.x+','+c.y)),cells=[];
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    if(x===st.x&&y===st.y)continue;
+    cells.push({x,y,on:onR.has(x+','+y)});
+  }
+  for(let i=cells.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cells[i],cells[j]]=[cells[j],cells[i]];}
+  const n=Math.floor(cells.length*.35);
+  for(let i=0;i<n;i++)apples.push({x:cells[i].x,y:cells[i].y,on:cells[i].on,t:Math.floor(Math.random()*7)});
+  offTotal=apples.filter(a=>!a.on).length;
+}
+function updateHud(){$('score').textContent=score;$('len').textContent=snake.length;}
+
+function freeCells(){
+  const occ=new Set();
+  snake.forEach(s=>occ.add(s.x+','+s.y));
+  apples.forEach(a=>occ.add(a.x+','+a.y));
+  const free=[];
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(!occ.has(x+','+y))free.push({x,y});
+  return free;
+}
+function spawnApples(n){
+  const out=[];
+  for(let k=0;k<n;k++){
+    let f;
+    if(mode==='route'){
+      const occ=new Set(apples.map(a=>a.x+','+a.y));
+      f=route.slice(ridx+1).filter(c=>!occ.has(c.x+','+c.y));
+    }else f=freeCells();
+    if(!f.length)return out;
+    const c=f[Math.floor(Math.random()*f.length)];
+    const o={x:c.x,y:c.y,t:Math.floor(Math.random()*7)};
+    apples.push(o);out.push(o);
+  }
+  return out;
+}
+
+/* ---- input ---- */
+function pushDir(dx,dy){
+  const ref=queue.length?queue[queue.length-1]:dir;
+  if(dx===-ref.x&&dy===-ref.y)return;
+  if(dx===ref.x&&dy===ref.y)return;
+  if(queue.length<3)queue.push({x:dx,y:dy});
+}
+let sx=0,sy=0,tracking=false;
+function cellOf(e){
+  const r=cv.getBoundingClientRect();
+  return {x:Math.max(0,Math.min(N-1,Math.floor((e.clientX-r.left)/r.width*N))),
+          y:Math.max(0,Math.min(N-1,Math.floor((e.clientY-r.top)/r.height*N)))};
+}
+const same=(a,b)=>a&&b&&a.x===b.x&&a.y===b.y;
+function extendTo(c){
+  let guard=N*3;
+  while(guard-->0){
+    const last=path[path.length-1];
+    if(same(last,c))break;
+    const dx=c.x-last.x,dy=c.y-last.y;
+    let nx=last.x,ny=last.y;
+    if(Math.abs(dx)>=Math.abs(dy))nx+=Math.sign(dx);else ny+=Math.sign(dy);
+    const nc={x:nx,y:ny};
+    if(path.length>1&&same(nc,path[path.length-2])){path.pop();continue;}
+    if(path.some(p=>same(p,nc)))break;
+    path.push(nc);
+  }
+}
+boardEl.addEventListener('pointerdown',e=>{
+  if(state==='plan'){
+    const c=cellOf(e);
+    if(!(path.length&&same(c,path[path.length-1])))path=[c];
+    planDrag=true;try{boardEl.setPointerCapture(e.pointerId)}catch(_){}
+    beep(440,.05,'triangle',.05);updatePlanUI();return;
+  }
+  sx=e.clientX;sy=e.clientY;tracking=true;
+});
+boardEl.addEventListener('pointermove',e=>{
+  if(state==='plan'){if(planDrag){extendTo(cellOf(e));updatePlanUI();}return;}
+  if(!tracking||state!=='play'||keysMode||autoMode)return;
+  const dx=e.clientX-sx,dy=e.clientY-sy;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<18)return;
+  if(Math.abs(dx)>Math.abs(dy))pushDir(dx>0?1:-1,0);else pushDir(0,dy>0?1:-1);
+  sx=e.clientX;sy=e.clientY;
+});
+window.addEventListener('pointerup',()=>{tracking=false;planDrag=false;});
+window.addEventListener('pointercancel',()=>{tracking=false;planDrag=false;});
+document.addEventListener('touchmove',e=>{if(e.target&&e.target.closest&&e.target.closest('#settings'))return;e.preventDefault();},{passive:false});
+function setKeyDir(dx,dy){
+  if(dx===-lastDir.x&&dy===-lastDir.y)return;
+  dir={x:dx,y:dy};
+}
+function holdStart(){
+  if(wHeld)return;
+  wHeld=true;
+  if(state==='play'&&alive&&keysMode){acc=0;step();}
+}
+window.addEventListener('keyup',e=>{const k=e.key.toLowerCase();if(k==='w')wHeld=false;if(k==='s')sHeld=false;});
+window.addEventListener('blur',()=>{wHeld=false;sHeld=false;});
+window.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(autoMode)return;
+  if(keysMode){
+    if(state!=='play')return;
+    if(k==='w'){if(!e.repeat)holdStart();return;}
+    if(k==='s'){if(!e.repeat)holdBack();return;}
+    const d={arrowup:[0,-1],arrowdown:[0,1],arrowleft:[-1,0],arrowright:[1,0]}[k];
+    if(d){setKeyDir(d[0],d[1]);keyClick();}
+    return;
+  }
+  if(k==='arrowup'||k==='w')pushDir(0,-1);
+  else if(k==='arrowdown'||k==='s')pushDir(0,1);
+  else if(k==='arrowleft'||k==='a')pushDir(-1,0);
+  else if(k==='arrowright'||k==='d')pushDir(1,0);
+});
+
+function hideOv(){$('menu').classList.add('hide');$('over').classList.add('hide');}
+function lightKey(d){
+  const b=document.querySelector('.key[data-dx="'+d.x+'"][data-dy="'+d.y+'"]');
+  if(!b)return;b.classList.add('down');setTimeout(()=>b.classList.remove('down'),160);
+}
+function showCtl(on){paused=false;$('pauseBtn').textContent='⏸';$('ctl').classList[on?'add':'remove']('show');}
+function startFree(){
+  showCtl(true);initAudio();mode='free';keysMode=false;autoMode=false;resetGame();state='play';hideOv();
+  $('plan').classList.remove('show');$('pad').classList.remove('auto');$('pad').classList.add('show');
+}
+function startAuto(){
+  showCtl(true);initAudio();mode='free';keysMode=false;autoMode=true;resetGame();state='play';hideOv();
+  $('plan').classList.remove('show');$('pad').classList.add('auto');$('pad').classList.add('show');
+}
+function startKeys(){
+  initAudio();mode='free';keysMode=true;autoMode=false;resetGame();state='play';hideOv();
+  $('plan').classList.remove('show');$('pad').classList.add('show');
+}
+function showPlan(){
+  initAudio();mode='route';keysMode=false;autoMode=false;state='plan';snake=null;apples=[];hideOv();$('pad').classList.remove('show');
+  $('plan').classList.add('show');updatePlanUI();
+}
+function updatePlanUI(){
+  $('go').disabled=path.length<2;
+  $('hint').textContent=path.length<2
+    ?'Put your finger on the board (the snake starts there) and drag to draw a route. The snake stops where you lift your finger.'
+    :'Route: '+path.length+' cells. Drag on from the last cell to extend it, or drag back to shorten it.';
+}
+function startRoute(){
+  if(path.length<2)return;
+  resetGame();state='play';$('plan').classList.remove('show');
+}
+function toMenu(){
+  showCtl(false);
+  mode='free';keysMode=false;autoMode=false;state='menu';resetGame();
+  $('plan').classList.remove('show');$('pad').classList.remove('show');$('pad').classList.remove('auto');$('over').classList.add('hide');$('settings').classList.add('hide');$('menu').classList.remove('hide');
+}
+$('pauseBtn').addEventListener('click',()=>{if(state!=='play')return;paused=!paused;$('pauseBtn').textContent=paused?'▶':'⏸';});
+$('exitBtn').addEventListener('click',toMenu);
+$('startFree').addEventListener('click',startFree);
+/* ---- settings screen ---- */
+function snakeSwatch(i){const P=SNAKES[i];return P.rainbow?'conic-gradient(#f33,#fc3,#3f6,#3cf,#93f,#f33)':'linear-gradient(135deg,'+P.i+','+P.o+')';}
+function buildSettings(){
+  $('sndBtn').textContent=muted?'Off':'On';
+  const bs=$('bgSw');bs.innerHTML='';
+  BGS.forEach((b,i)=>{const e=document.createElement('i');e.style.background=b.check?'linear-gradient(45deg,'+b.a+' 50%,'+b.b+' 50%)':b.a;if(b.a==='#000')e.style.borderColor='rgba(255,255,255,.4)';e.className=i===bgIdx?'sel':'';e.title=b.n;
+    e.addEventListener('click',()=>{bgIdx=i;try{localStorage.setItem('snk_bg',i)}catch(_){}buildSettings();});bs.appendChild(e);});
+  const fr=$('frSw');fr.innerHTML='';
+  [['normal','Normal'],['one','One at a time']].forEach(([k,n])=>{const e=document.createElement('i');e.className='auto'+(fruitMode===k?' sel':'');e.textContent=n;
+    e.addEventListener('click',()=>{fruitMode=k;try{localStorage.setItem('snk_fruit',k)}catch(_){}buildSettings();});fr.appendChild(e);});
+  const st=$('stSw');st.innerHTML='';
+  [['auto','Auto'],['plain','Plain'],['dots','Dots']].forEach(([k,n])=>{const e=document.createElement('i');e.className='auto'+(snStyle===k?' sel':'');e.textContent=n;
+    e.addEventListener('click',()=>{snStyle=k;try{localStorage.setItem('snk_style',k)}catch(_){}buildSettings();});st.appendChild(e);});
+  const ss=$('snSw');ss.innerHTML='';
+  const au=document.createElement('i');au.className='auto'+(fixedPal<0?' sel':'');au.textContent='Auto';
+  au.addEventListener('click',()=>{fixedPal=-1;try{localStorage.setItem('snk_pal',-1)}catch(_){}buildSettings();});ss.appendChild(au);
+  SNAKES.forEach((_,i)=>{const e=document.createElement('i');e.style.background=snakeSwatch(i);e.className=i===fixedPal?'sel':'';
+    e.addEventListener('click',()=>{fixedPal=i;try{localStorage.setItem('snk_pal',i)}catch(_){}buildSettings();});ss.appendChild(e);});
+}
+$('openSet').addEventListener('click',()=>{buildSettings();$('menu').classList.add('hide');$('settings').classList.remove('hide');});
+const closeSet=()=>{$('settings').classList.add('hide');$('menu').classList.remove('hide');pal=fixedPal>=0?fixedPal:0;};
+$('setBack').addEventListener('click',closeSet);$('setTop').addEventListener('click',closeSet);
+$('sndBtn').addEventListener('click',()=>{muted=!muted;try{localStorage.setItem('snk_mute',muted?'1':'0')}catch(_){}buildSettings();if(!muted){initAudio();beep(660,.08,'triangle',.08,200);}});
+document.querySelectorAll('.key').forEach(b=>{
+  const press=e=>{
+    e.preventDefault();b.classList.add('down');
+    try{b.setPointerCapture(e.pointerId)}catch(_){}
+    if(state!=='play'||autoMode)return;
+    pushDir(+b.dataset.dx,+b.dataset.dy);
+  };
+  const lift=()=>{b.classList.remove('down');};
+  b.addEventListener('pointerdown',press);
+  b.addEventListener('pointerup',lift);b.addEventListener('pointerleave',lift);b.addEventListener('pointercancel',lift);
+});
+$('again').addEventListener('click',()=>{if(mode==='route')showPlan();else if(keysMode)startKeys();else if(autoMode)startAuto();else startFree();});
+$('menuBtn').addEventListener('click',toMenu);
+
+
+/* ---- logic ---- */
+// S key: take back the last forward step (also removes it from the replay)
+function undoStep(){
+  if(!hist.length||snake.length<2)return false;
+  const h=hist.pop();
+  snake.shift();nextId--;
+  if(h.removed)snake.push(h.removed);
+  if(h.ate){
+    apples.push(h.ate);score--;
+    if(h.palChanged){pal=(pal+SNAKES.length-1)%SNAKES.length;bordIdx=(bordIdx+BORDERS.length-1)%BORDERS.length;}
+  }
+  (h.spawned||[]).forEach(a=>{const i=apples.indexOf(a);if(i>=0)apples.splice(i,1);});
+  if(rec&&rec.moves.length)rec.moves.pop();
+  removedTail=null;
+  lastDir={x:snake[0].x-snake[1].x,y:snake[0].y-snake[1].y};dir=lastDir;
+  updateHud();
+  return true;
+}
+function holdBack(){
+  if(sHeld)return;
+  sHeld=true;
+  if(state==='play'&&alive&&keysMode&&!replaying&&!wHeld){acc=0;undoStep();}
+}
+/* ---- auto play: the snake walks a route that passes through EVERY cell, eating fruit on the way ---- */
+let autoCycle=[],autoIdx=0;
+function makeCycle(){
+  const M=N/2,conn=[];                       // conn[cell] = {u,d,l,r} spanning-tree links between 2x2 blocks
+  for(let i=0;i<M*M;i++)conn.push({u:0,d:0,l:0,r:0});
+  const seen=new Uint8Array(M*M),list=[],q=Math.random();   // q: 1 = long winding corridors, 0 = short twisty ones
+  const start=Math.floor(Math.random()*M*M);seen[start]=1;list.push(start);
+  while(list.length){
+    const idx=Math.random()<q?list.length-1:Math.floor(Math.random()*list.length);
+    const c=list[idx],cx=c%M,cy=(c/M)|0,opts=[];
+    if(cx>0&&!seen[c-1])opts.push('l');
+    if(cx<M-1&&!seen[c+1])opts.push('r');
+    if(cy>0&&!seen[c-M])opts.push('u');
+    if(cy<M-1&&!seen[c+M])opts.push('d');
+    if(!opts.length){list.splice(idx,1);continue;}
+    const o=opts[Math.floor(Math.random()*opts.length)];
+    const nb=o==='l'?c-1:o==='r'?c+1:o==='u'?c-M:c+M;
+    conn[c][o]=1;conn[nb][o==='l'?'r':o==='r'?'l':o==='u'?'d':'u']=1;
+    seen[nb]=1;list.push(nb);
+  }
+  // fine graph: every cell gets exactly two neighbours -> one loop through all N*N cells
+  const adj=Array.from({length:N*N},()=>[]);
+  const link=(a,b)=>{adj[a].push(b);adj[b].push(a);};
+  const F=(x,y)=>y*N+x;
+  for(let j=0;j<M;j++)for(let i=0;i<M;i++){
+    const c=conn[j*M+i],x=2*i,y=2*j;
+    if(!c.u)link(F(x,y),F(x+1,y));
+    if(!c.d)link(F(x,y+1),F(x+1,y+1));
+    if(!c.l)link(F(x,y),F(x,y+1));
+    if(!c.r)link(F(x+1,y),F(x+1,y+1));
+    if(c.r){link(F(x+1,y),F(x+2,y));link(F(x+1,y+1),F(x+2,y+1));}
+    if(c.d){link(F(x,y+1),F(x,y+2));link(F(x+1,y+1),F(x+1,y+2));}
+  }
+  const cyc=[];let prev=-1,cur=0;
+  do{
+    cyc.push({x:cur%N,y:(cur/N)|0});
+    const nx=adj[cur][0]!==prev?adj[cur][0]:adj[cur][1];
+    prev=cur;cur=nx;
+  }while(cur!==0&&cyc.length<=N*N);
+  if(Math.random()<.5)cyc.reverse();
+  return cyc;
+}
+// Auto fruit refill. The snake walks the cycle one cell per step, so a fruit placed d cells ahead is eaten after exactly d steps.
+// Gap between fruits is steered so the whole match lands on autoTotal steps (about 6:00-6:30). Count shrinks over time; last 2 min = 1 fruit.
+function autoRefill(){
+  const L=autoCycle.length;
+  const tail=autoSteps>=autoTotal-AUTO_TAIL;
+  const want=(tail||fruitMode==='one')?1:Math.max(1,Math.round(startFruit*Math.exp(-autoSteps/AUTO_DECAY)));
+  while(apples.length<want){
+    const free=N*N-snake.length;
+    if(free<=apples.length)break;
+    const toEat=Math.max(1,N*N-snake.length);
+    const gap=Math.max(1,(autoTotal-autoSteps)/toEat);
+    // fruit appears close, medium or far from the head (average distance = gap, so the match still ends on time)
+    const r=Math.random(),R=Math.random();
+    let d=r<.4?1+Math.floor(R*Math.max(1,gap*.4)):r<.8?Math.round(gap*(.5+R)):Math.round(gap*(1.8+R*1.7));
+    if(snake.length<N*N/5)d=Math.max(d,8);                           // never right next to the head
+    d=Math.max(1,Math.min(free,d));
+    const occ=new Set(apples.map(a=>a.x+','+a.y));
+    let placed=false;
+    const minM=free>60?autoMinM:free>25?4:0;       // keep the fruit away from the mouth
+    // take the free cell closest to the wanted distance d that is also far enough from the head
+    for(let t=0;t<free&&!placed;t++){
+      for(const k of(t===0?[d]:[d+t,d-t])){
+        if(k<1||k>free)continue;
+        const c=autoCycle[(autoIdx+k)%L];
+        if(occ.has(c.x+','+c.y))continue;
+        if(Math.abs(c.x-snake[0].x)+Math.abs(c.y-snake[0].y)<minM)continue;
+        apples.push({x:c.x,y:c.y,t:Math.floor(Math.random()*7)});placed=true;break;
+      }
+    }
+    if(!placed&&minM){                      // nothing far enough: fall back to any free cell
+      for(let t=0;t<free&&!placed;t++){const c=autoCycle[(autoIdx+((d-1+t)%free)+1)%L];if(!occ.has(c.x+','+c.y)){apples.push({x:c.x,y:c.y,t:Math.floor(Math.random()*7)});placed=true;}}
+    }
+    if(!placed)break;
+  }
+}
+// Re-route the part of the cycle that is still ahead of the snake, beyond the last fruit (so fruit timing never changes).
+// Move = split the loop in two at a 2x2 square, then join the two loops through another square. The result is always one loop through every cell.
+function autoMutate(){
+  const L=autoCycle.length,free=L-snake.length;
+  if(free<8)return;
+  const cyc=new Array(L);
+  for(let k=0;k<L;k++)cyc[k]=autoCycle[(autoIdx+k)%L];
+  const pos=new Int16Array(N*N).fill(-1);
+  for(let k=0;k<L;k++)pos[cyc[k].y*N+cyc[k].x]=k;
+  let minPos=0;
+  apples.forEach(a=>{const k=pos[a.y*N+a.x];if(k>minPos)minPos=k;});
+  if(minPos>free-6){autoCycle=cyc;autoIdx=0;return;}
+  const D=[[1,0],[-1,0],[0,1],[0,-1]];
+  const at=(x,y)=>(x<0||y<0||x>=N||y>=N)?-1:pos[y*N+x];
+  let cur=cyc;
+  for(let t=0;t<24;t++){
+    // pick edge p->q at i (beyond last fruit) and look for an antiparallel edge r->s on the opposite side of a square
+    const i=minPos+Math.floor(Math.random()*(free-minPos-3));
+    const p=cur[i],q=cur[i+1];
+    const ux=q.x-p.x,uy=q.y-p.y;
+    const sd=Math.random()<.5?1:-1,px=-uy*sd,py=ux*sd;
+    const j=at(q.x+px,q.y+py);
+    if(j<i+3||j>free)continue;
+    const r=cur[j],s=cur[j+1];
+    if(s.x!==p.x+px||s.y!==p.y+py)continue;               // not a square with opposite edges p-q and r-s
+    // split: C1 = positions i+1..j (closed r-q); C2 = rest (closed s-p). Join them through another square.
+    let done=false;
+    for(let tr=0;tr<12&&!done;tr++){
+      const m=i+1+Math.floor(Math.random()*(j-i-1));      // edge m -> m+1 inside C1
+      if(m+1>j)continue;
+      const u=cur[m],v=cur[m+1];
+      const vx=v.x-u.x,vy=v.y-u.y;
+      const sg=Math.random()<.5?1:-1,qx=-vy*sg,qy=vx*sg;
+      const pw=at(u.x+qx,u.y+qy);                           // w = u + perpendicular
+      if(pw<0)continue;
+      let ok=false,w1=-1,opt=0;                              // C2 edge (pw,pw+1)
+      if((pw>=minPos&&pw+1<=i)||(pw>=j+1&&pw+1<=free+1)){
+        const w2=cur[pw+1];
+        if(w2.x===v.x+qx&&w2.y===v.y+qy){ok=true;opt=1;}     // w~u, w+~v
+      }
+      let pw2=-1;
+      if(!ok){
+        pw2=at(v.x+qx,v.y+qy);                               // w = v + perpendicular, w+ must be u + perpendicular
+        if(pw2>=0&&((pw2>=minPos&&pw2+1<=i)||(pw2>=j+1&&pw2+1<=free+1))){
+          const w2=cur[pw2+1];
+          if(w2.x===u.x+qx&&w2.y===u.y+qy){ok=true;opt=2;}
+        }
+      }
+      if(!ok)continue;
+      const w=opt===1?pw:pw2;
+      let ins=[];
+      if(opt===2){for(let k=m+1;k<=j;k++)ins.push(cur[k]);for(let k=i+1;k<=m;k++)ins.push(cur[k]);}
+      else{for(let k=m;k>=i+1;k--)ins.push(cur[k]);for(let k=j;k>=m+1;k--)ins.push(cur[k]);}
+      let nc;
+      if(w+1<=i)nc=cur.slice(0,w+1).concat(ins,cur.slice(w+1,i+1),cur.slice(j+1));
+      else nc=cur.slice(0,i+1).concat(cur.slice(j+1,w+1),ins,cur.slice(w+1));
+      if(nc.length!==L)continue;
+      let good=true;
+      for(let k=0;k<L;k++){const a=nc[k],b=nc[(k+1)%L];if(Math.abs(a.x-b.x)+Math.abs(a.y-b.y)!==1){good=false;break;}}
+      if(!good)continue;
+      for(let k=0;k<L;k++)pos[nc[k].y*N+nc[k].x]=k;
+      cur=nc;done=true;
+    }
+  }
+  autoCycle=cur;autoIdx=0;
+}
+function autoBite(){
+  flash=.5;beep(140,.4,'sawtooth',.1,-90);
+  finish('🐍 It bit its tail!','The snake grew until it bit its own tail.');
+}
+function autoDone(){finish('🤖 All fruits eaten!','The snake ate '+score+' fruits by itself.');}
+function step(){
+  let nx,ny;
+  if(mode==='route'){
+    const nc=route[ridx+1];
+    if(!nc){finishRoute();return;}
+    nx=nc.x;ny=nc.y;const od=dir;dir={x:nx-snake[0].x,y:ny-snake[0].y};
+    if(dir.x!==od.x||dir.y!==od.y)keyClick();
+  }else if(replaying){
+    const m=rec.moves[rpos++];
+    if(!m){finishReplay();return;}
+    curMove=m;nx=m.x;ny=m.y;
+    const od=dir;dir={x:nx-snake[0].x,y:ny-snake[0].y};lastDir=dir;
+    if(dir.x!==od.x||dir.y!==od.y)keyClick();
+  }else{
+    if(autoMode){
+      autoSteps++;if(++autoIdle>900){finish('🤖 Auto play stopped','The snake could not finish.');return;}
+      autoMutate();const L=autoCycle.length;autoIdx=(autoIdx+1)%L;
+      const c=autoCycle[autoIdx],d={x:c.x-snake[0].x,y:c.y-snake[0].y};
+      const od=dir;dir=d;if(d.x!==od.x||d.y!==od.y){keyClick();lightKey(d);}
+    }else if(queue.length){const od=dir;dir=queue.shift();if((dir.x!==od.x||dir.y!==od.y)&&!keysMode)keyClick();}
+    lastDir=dir;
+    nx=snake[0].x+dir.x;ny=snake[0].y+dir.y;
+    if(nx<0||ny<0||nx>=N||ny>=N){die();return;}
+  }
+  const ai=apples.findIndex(a=>a.x===nx&&a.y===ny);
+  const eat=ai>=0;
+  const grow=eat||pendingGrow>0;
+  const lim=grow?snake.length:snake.length-1;
+  for(let i=0;i<lim;i++)if(snake[i].x===nx&&snake[i].y===ny){die();return;}
+  if(mode==='free'&&!replaying&&rec)rec.moves.push(curMove={x:nx,y:ny});
+  snake.unshift({x:nx,y:ny,id:nextId++});
+  if(mode==='route')ridx++;
+  let ate=null,palCh=false,spawnedRefs=[];
+  if(eat){
+    removedTail=null;ate=apples[ai];apples.splice(ai,1);score++;eatAt=Date.now();
+    if(score%5===0){if(fixedPal<0)pal=(pal+1)%SNAKES.length;bordIdx=(bordIdx+1)%BORDERS.length;palCh=true;}
+    beep(520+Math.min(score,30)*10,.09,'triangle',.08,260);
+    if(mode==='free'){
+      // the more the snake has eaten, the fewer new fruits appear (never fewer than 3 on board)
+      if(replaying){(curMove.spawn||[]).forEach(a=>apples.push({x:a.x,y:a.y,t:a.t}));}
+      else if(autoMode){autoRefill();}
+      else{
+        let sp=[];
+        if(fruitMode==='one'){if(apples.length<1)sp=sp.concat(spawnApples(1));}
+        else{
+        if(Math.random()<Math.max(0,.6*(1-score/startFruit)))sp=sp.concat(spawnApples(1));
+        if(apples.length<3)sp=sp.concat(spawnApples(3-apples.length));}
+        if(sp.length&&curMove)curMove.spawn=sp.map(a=>({x:a.x,y:a.y,t:a.t}));
+        spawnedRefs=sp;
+      }
+    }
+    updateHud();
+    autoIdle=0;
+    if(mode==='free'&&autoMode&&snake.length>=N*N){autoBite();return;}
+    if(mode==='free'&&snake.length>=N*N){win();return;}
+    if(mode==='free'&&autoMode&&!apples.length){autoDone();return;}
+  }else if(pendingGrow>0){pendingGrow--;removedTail=null;updateHud();}
+  else removedTail=snake.pop();
+  if(mode==='free'&&!replaying){hist.push({removed:removedTail,ate,spawned:spawnedRefs,palChanged:palCh});if(hist.length>3000)hist.shift();}
+  if(mode==='route'){
+    const prog=ridx/Math.max(1,route.length-1);
+    const target=Math.floor(offTotal*(1-prog));
+    const off=apples.filter(a=>!a.on);
+    while(off.length>target){
+      const a=off.splice(Math.floor(Math.random()*off.length),1)[0];
+      apples.splice(apples.indexOf(a),1);ghosts.push({x:a.x,y:a.y,t:a.t,life:.3});
+    }
+    if(ridx>=route.length-1)finishRoute();
+  }
+  if(replaying&&state==='play'&&rpos>=rec.moves.length)finishReplay();
+}
+function finish(title,msg){
+  showCtl(false);state='over';alive=false;
+  $('final').textContent=snake?snake.length:0;
+  $('title').textContent=title;
+  $('msg').textContent=msg;
+  setTimeout(()=>$('over').classList.remove('hide'),650);
+}
+function die(){
+  flash=.6;beep(150,.45,'sawtooth',.12,-100);
+  if(navigator.vibrate){try{navigator.vibrate(80)}catch(e){}}
+  finish('Game over','Try again!');
+}
+function win(){finish('🏆 You won!','You cleared the board!');}
+function finishReplay(){
+  beep(660,.3,'triangle',.08,400);
+  finish('🎬 Replay finished','You ate '+score+' fruits.');
+}
+function startReplay(){
+  if(!rec||!rec.moves.length)return;
+  initAudio();mode='free';replaying=true;rpos=0;curMove=null;
+  queue=[];ghosts=[];offTotal=0;acc=0;removedTail=null;score=0;alive=true;flash=0;pendingGrow=0;pal=0;bordIdx=0;wHeld=false;
+  snake=rec.snake0.map(c=>({x:c.x,y:c.y,id:c.id}));nextId=snake.length;
+  dir={x:rec.dir0.x,y:rec.dir0.y};lastDir=dir;
+  apples=rec.apples0.map(a=>({x:a.x,y:a.y,t:a.t,on:a.on}));
+  updateHud();state='play';hideOv();
+  $('plan').classList.remove('show');$('pad').classList.remove('show');
+}
+function finishRoute(){
+  beep(660,.3,'triangle',.08,400);
+  finish('🏁 Route complete!','You ate '+score+' fruits.');
+}
+
+/* ---- drawing ---- */
+const rnd=n=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x)};
+const C=v=>v*CS+CS/2;
+
+function drawFruitShape(ctx,type,r){
+  ctx.save();ctx.lineCap='round';
+  const hi=(x,y,w,h)=>{ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.ellipse(x,y,w,h,.4,0,6.283);ctx.fill();};
+  const leaf=(x,y,rot,col)=>{ctx.fillStyle=col||'#4ade80';ctx.beginPath();ctx.ellipse(x,y,r*.38,r*.17,rot,0,6.283);ctx.fill();};
+  const radial=(c0,c1,c2,R)=>{const g=ctx.createRadialGradient(-R*.35,-R*.35,1,0,0,R*1.15);g.addColorStop(0,c0);g.addColorStop(.6,c1);g.addColorStop(1,c2);return g;};
+  switch(type){
+    case 0: // apple
+      ctx.fillStyle=radial('#ff9a8a','#e53935','#9b1c1c',r);
+      ctx.beginPath();ctx.arc(-r*.22,r*.08,r*.82,0,6.283);ctx.arc(r*.22,r*.08,r*.82,0,6.283);ctx.fill();
+      ctx.strokeStyle='#6b3f1d';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(0,-r*.55);ctx.lineTo(1.5,-r*1.1);ctx.stroke();
+      leaf(r*.5,-r*.9,-.5);hi(-r*.45,-r*.15,r*.15,r*.28);break;
+    case 1: // banana
+      ctx.strokeStyle='#e0a800';ctx.lineWidth=r*.95;
+      ctx.beginPath();ctx.arc(0,-r*.55,r*1.15,.22*Math.PI,.78*Math.PI);ctx.stroke();
+      ctx.strokeStyle='#ffe14d';ctx.lineWidth=r*.75;
+      ctx.beginPath();ctx.arc(0,-r*.55,r*1.15,.22*Math.PI,.78*Math.PI);ctx.stroke();
+      ctx.fillStyle='#5a3a12';
+      ctx.beginPath();ctx.arc(Math.cos(.22*Math.PI)*r*1.15,-r*.55+Math.sin(.22*Math.PI)*r*1.15,r*.2,0,6.283);
+      ctx.arc(Math.cos(.78*Math.PI)*r*1.15,-r*.55+Math.sin(.78*Math.PI)*r*1.15,r*.2,0,6.283);ctx.fill();break;
+    case 2: // strawberry
+      ctx.fillStyle=radial('#ff8a9a','#e8243c','#9a0f26',r);
+      ctx.beginPath();ctx.moveTo(-r*.85,-r*.4);ctx.quadraticCurveTo(-r*.95,r*.35,0,r*1.05);
+      ctx.quadraticCurveTo(r*.95,r*.35,r*.85,-r*.4);ctx.quadraticCurveTo(0,-r*.95,-r*.85,-r*.4);ctx.fill();
+      ctx.fillStyle='#ffe9a0';
+      [[-.35,-.1],[.3,-.15],[0,.2],[-.3,.35],[.28,.38],[0,-.45]].forEach(p=>{ctx.beginPath();ctx.ellipse(p[0]*r,p[1]*r,r*.07,r*.1,0,0,6.283);ctx.fill();});
+      ctx.fillStyle='#38b349';
+      [[-.5,-.8,-.5],[0,-.95,0],[.5,-.8,.5]].forEach(p=>{ctx.beginPath();ctx.ellipse(p[0]*r,p[1]*r,r*.32,r*.15,p[2],0,6.283);ctx.fill();});break;
+    case 3: // mango
+      ctx.save();ctx.rotate(-.5);
+      ctx.fillStyle=radial('#ffe066','#ffa726','#e8590c',r);
+      ctx.beginPath();ctx.ellipse(0,0,r*.8,r*1.0,0,0,6.283);ctx.fill();
+      ctx.fillStyle='rgba(230,60,40,.35)';ctx.beginPath();ctx.ellipse(r*.35,r*.25,r*.45,r*.65,0,0,6.283);ctx.fill();
+      ctx.restore();
+      leaf(r*.35,-r*.95,-.6,'#2f9e44');hi(-r*.4,-r*.35,r*.14,r*.26);break;
+    case 4: // orange
+      ctx.fillStyle=radial('#ffc266','#ff8a00','#c25e00',r);
+      ctx.beginPath();ctx.arc(0,0,r*.92,0,6.283);ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,.12)';
+      for(let i=0;i<7;i++){ctx.beginPath();ctx.arc(Math.cos(i*2.1)*r*.5,Math.sin(i*2.1)*r*.5,r*.05,0,6.283);ctx.fill();}
+      leaf(r*.3,-r*.9,-.4);hi(-r*.4,-r*.35,r*.14,r*.26);break;
+    case 5: // cherries
+      ctx.strokeStyle='#4a8a2a';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(-r*.45,r*.2);ctx.quadraticCurveTo(-r*.2,-r*.8,r*.25,-r*1.05);
+      ctx.moveTo(r*.5,r*.25);ctx.quadraticCurveTo(r*.45,-r*.7,r*.25,-r*1.05);ctx.stroke();
+      [[-.45,.3],[.5,.35]].forEach(p=>{
+        const g=ctx.createRadialGradient(p[0]*r-2,p[1]*r-2,1,p[0]*r,p[1]*r,r*.6);
+        g.addColorStop(0,'#ff6b7a');g.addColorStop(1,'#a3122a');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(p[0]*r,p[1]*r,r*.5,0,6.283);ctx.fill();
+      });
+      leaf(r*.5,-r*.95,-.4);break;
+    case 6: // grapes
+      ctx.fillStyle='#7b3fb8';
+      [[0,-.45],[-.38,-.1],[.38,-.1],[-.2,.28],[.2,.28],[0,.7]].forEach(p=>{
+        const g=ctx.createRadialGradient(p[0]*r-1.5,p[1]*r-1.5,1,p[0]*r,p[1]*r,r*.42);
+        g.addColorStop(0,'#c9a0ff');g.addColorStop(1,'#5a2a94');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(p[0]*r,p[1]*r,r*.38,0,6.283);ctx.fill();
+      });
+      ctx.strokeStyle='#6b3f1d';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-r*.7);ctx.lineTo(1,-r*1.1);ctx.stroke();
+      leaf(r*.45,-r*.95,-.4);break;
+  }
+  ctx.restore();
+}
+
+let spr=[],sprW=0,sprSc=0;
+function buildSprites(){
+  sprSc=cv.width/SZ;sprW=Math.ceil(CS*sprSc*1.7);spr=[];
+  for(let k=0;k<7;k++){
+    const c=document.createElement('canvas');c.width=c.height=sprW;
+    const g=c.getContext('2d');g.translate(sprW/2,sprW/2);g.scale(sprSc,sprSc);
+    drawFruitShape(g,k,CS*.4);spr.push(c);
+  }
+}
+function drawApple(a,t,sc,al){
+  if(!spr.length||sprSc!==cv.width/SZ)buildSprites();
+  const s2=(sc==null?1+Math.sin(t*5+a.x+a.y)*.05:sc),w=sprW/sprSc*s2;
+  if(al!=null)ctx.globalAlpha=al;
+  ctx.drawImage(spr[a.t],C(a.x)-w/2,C(a.y)-w/2,w,w);
+  if(al!=null)ctx.globalAlpha=1;
+}
+
+function snakePal(t){
+  let P=SNAKES[pal];
+  if(P.rainbow){const h=(t*80)%360;P={o:'hsl('+h+',100%,32%)',i:'hsl('+h+',100%,58%)',h:'hsl('+((h+25)%360)+',100%,78%)',glow:'hsl('+h+',100%,60%)',dots:false};}
+  if(snStyle==='auto')return P;
+  return Object.assign({},P,{dots:snStyle==='dots',d:P.d||'rgba(0,0,0,.5)'});
+}
+function drawSnake(t){
+  const P=snakePal(t),n=snake.length;
+  const k=(keysMode&&!wHeld&&!replaying)?1:Math.min(1,acc/stepT);
+  const pts=[];
+  const L=(a,b)=>({x:C(a.x)+(C(b.x)-C(a.x))*k,y:C(a.y)+(C(b.y)-C(a.y))*k});
+  if(state!=='play'||!alive)pts.push({x:C(snake[0].x),y:C(snake[0].y)});
+  else pts.push(n>1?L(snake[1],snake[0]):{x:C(snake[0].x),y:C(snake[0].y)});
+  for(let i=1;i<n;i++)pts.push({x:C(snake[i].x),y:C(snake[i].y)});
+  if(removedTail&&state==='play'&&alive){
+    pts.push(L(removedTail,snake[n-1]));
+  }
+  // body
+  ctx.lineCap='round';ctx.lineJoin='round';
+  const path=()=>{ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);};
+  path();ctx.strokeStyle=P.o;ctx.lineWidth=CS*1.04;ctx.stroke();
+  ctx.shadowBlur=0;
+  path();ctx.strokeStyle=P.i;ctx.lineWidth=CS*.9;ctx.stroke();
+  // dots
+  ctx.fillStyle='#000';
+  for(let i=0;P.dots&&i<pts.length-1;i++){
+    const a=pts[i],b=pts[i+1];
+    const id=i===0?snake[0].id:(snake[Math.min(i,n-1)].id);
+    const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);
+    if(len<2)continue;
+    const ux=dx/len,uy=dy/len,px=-uy,py=ux;
+    for(let j=0;j<4;j++){
+      const r1=rnd(id*7+j),r2=rnd(id*13+j*5),r3=rnd(id*17+j*3);
+      const f=(j+r1*.8)/4;
+      const off=(r2-.5)*CS*.42;
+      const rad=CS*(.14+r3*.1);
+      ctx.beginPath();ctx.arc(a.x+dx*f+px*off,a.y+dy*f+py*off,rad,0,6.283);ctx.fill();
+    }
+  }
+  // head + face (drawn in a frame where the snake looks along +x)
+  const hd=pts[0];
+  const U=CS;
+  ctx.save();ctx.translate(hd.x,hd.y);ctx.rotate(Math.atan2(dir.y,dir.x));
+  ctx.fillStyle=P.i;ctx.beginPath();ctx.arc(0,0,U*.68,0,6.283);ctx.fill();
+  ctx.strokeStyle=P.o;ctx.lineWidth=1.2;ctx.stroke();
+  let f=faceStyle;
+  if(f==='auto')f=(Date.now()-eatAt<650)?'tongue':'normal';
+  ctx.lineCap='round';
+  const eye=(y,r,pup)=>{ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(U*.12,y,r,0,6.283);ctx.fill();ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=.9;ctx.stroke();
+    ctx.fillStyle='#0a0a1a';ctx.beginPath();ctx.arc(U*.12+U*.07,y,pup,0,6.283);ctx.fill();};
+  const happyEye=y=>{ctx.strokeStyle='#0a0a1a';ctx.lineWidth=U*.1;ctx.beginPath();ctx.moveTo(U*.02,y-U*.15);ctx.quadraticCurveTo(U*.34,y,U*.02,y+U*.15);ctx.stroke();};
+  const smile=()=>{ctx.strokeStyle='#0a0a1a';ctx.lineWidth=U*.09;ctx.beginPath();ctx.moveTo(U*.36,-U*.22);ctx.quadraticCurveTo(U*.64,0,U*.36,U*.22);ctx.stroke();};
+  const R=U*.33,PUP=U*.17,EY=U*.3;
+  if(f==='cool'){
+    ctx.fillStyle='#07070c';
+    for(const y of[-EY,EY]){ctx.beginPath();ctx.ellipse(U*.14,y,U*.2,U*.27,0,0,6.283);ctx.fill();}
+    ctx.strokeStyle='#07070c';ctx.lineWidth=U*.07;ctx.beginPath();ctx.moveTo(U*.14,-EY+U*.1);ctx.lineTo(U*.14,EY-U*.1);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(U*.05,-EY-U*.2);ctx.lineTo(-U*.3,-EY-U*.28);ctx.moveTo(U*.05,EY+U*.2);ctx.lineTo(-U*.3,EY+U*.28);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.55)';for(const y of[-EY,EY]){ctx.beginPath();ctx.ellipse(U*.07,y-U*.08,U*.05,U*.1,.3,0,6.283);ctx.fill();}
+    ctx.strokeStyle='#0a0a1a';ctx.lineWidth=U*.07;ctx.beginPath();ctx.moveTo(U*.34,-U*.14);ctx.quadraticCurveTo(U*.5,0,U*.34,U*.14);ctx.stroke();
+  }else if(f==='smile'){
+    happyEye(-EY);happyEye(EY);smile();
+  }else if(f==='wink'){
+    eye(-EY,R,PUP);
+    ctx.strokeStyle='#0a0a1a';ctx.lineWidth=U*.1;ctx.beginPath();ctx.moveTo(U*.02,EY-U*.17);ctx.lineTo(U*.2,EY);ctx.lineTo(U*.02,EY+U*.17);ctx.stroke();
+    smile();
+  }else if(f==='surprised'){
+    eye(-EY,R*1.1,PUP*.6);eye(EY,R*1.1,PUP*.6);
+    ctx.fillStyle='#0a0a1a';ctx.beginPath();ctx.ellipse(U*.5,0,U*.1,U*.14,0,0,6.283);ctx.fill();
+  }else if(f==='tongue'){
+    eye(-EY,R,PUP);eye(EY,R,PUP);
+    ctx.strokeStyle='#0a0a1a';ctx.lineWidth=U*.06;ctx.beginPath();ctx.moveTo(U*.4,-U*.17);ctx.lineTo(U*.4,U*.17);ctx.stroke();
+    ctx.fillStyle='#ff5f8f';ctx.beginPath();ctx.moveTo(U*.4,-U*.1);ctx.lineTo(U*.78,-U*.1);ctx.arc(U*.78,0,U*.1,-Math.PI/2,Math.PI/2);ctx.lineTo(U*.4,U*.1);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#c2285a';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(U*.5,0);ctx.lineTo(U*.84,0);ctx.stroke();
+  }else{
+    eye(-EY,R,PUP);eye(EY,R,PUP);
+  }
+  ctx.restore();
+}
+
+function drawPlan(t){
+  if(!path.length)return;
+  ctx.save();
+  ctx.fillStyle='rgba(255,212,0,.14)';
+  path.forEach(c=>ctx.fillRect(c.x*CS+1,c.y*CS+1,CS-2,CS-2));
+  if(path.length>1){
+    ctx.strokeStyle='#ffd400';ctx.lineWidth=3;ctx.setLineDash([6,5]);ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();path.forEach((c,i)=>i?ctx.lineTo(C(c.x),C(c.y)):ctx.moveTo(C(c.x),C(c.y)));ctx.stroke();
+    ctx.setLineDash([]);ctx.fillStyle='#ffd400';
+    for(let i=1;i<path.length-1;i+=4){
+      const a=path[i-1],b=path[i];
+      ctx.save();ctx.translate(C(b.x),C(b.y));ctx.rotate(Math.atan2(b.y-a.y,b.x-a.x));
+      ctx.beginPath();ctx.moveTo(6,0);ctx.lineTo(-4,-5);ctx.lineTo(-4,5);ctx.closePath();ctx.fill();ctx.restore();
+    }
+  }
+  const mark=(c,col,txt)=>{
+    ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=10;
+    ctx.beginPath();ctx.arc(C(c.x),C(c.y),CS*.44,0,6.283);ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle='#fff';ctx.font="800 "+Math.round(CS*.5)+"px system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,C(c.x),C(c.y)+1);
+  };
+  mark(path[0],'#1fa84a','S');
+  if(path.length>1){
+    mark(path[path.length-1],'#e5383b','E');
+    const a=path[0],b=path[1];
+    ctx.fillStyle='#4ade80';ctx.save();ctx.translate(C(a.x),C(a.y));ctx.rotate(Math.atan2(b.y-a.y,b.x-a.x));
+    ctx.beginPath();ctx.moveTo(CS*.95,0);ctx.lineTo(CS*.55,-CS*.28);ctx.lineTo(CS*.55,CS*.28);ctx.closePath();ctx.fill();ctx.restore();
+  }
+  ctx.restore();
+}
+
+function draw(t){
+  const bg=BGS[bgIdx];
+  ctx.fillStyle=bg.a;ctx.fillRect(0,0,SZ,SZ);
+  if(bg.check){ctx.fillStyle=bg.b;for(let y=0;y<N;y++)for(let x=0;x<N;x++)if((x+y)&1)ctx.fillRect(x*CS,y*CS,CS,CS);}
+  else if(bg.g){ctx.strokeStyle=bg.g;ctx.lineWidth=1;ctx.beginPath();for(let i=1;i<N;i++){ctx.moveTo(i*CS,0);ctx.lineTo(i*CS,SZ);ctx.moveTo(0,i*CS);ctx.lineTo(SZ,i*CS);}ctx.stroke();}
+  if(state==='plan')drawPlan(t);
+  else if(snake){
+    apples.forEach(a=>drawApple(a,t));
+    ghosts.forEach(g=>drawApple(g,t,g.life/.3,g.life/.3));
+    drawSnake(t);
+  }
+  // border
+  ctx.save();
+  const bc=(flash>0&&!alive)?'#ff3b3b':BORDERS[bordIdx];
+  ctx.shadowColor=bc;ctx.shadowBlur=10;ctx.strokeStyle=bc;ctx.lineWidth=3;
+  ctx.strokeRect(2,2,SZ-4,SZ-4);ctx.restore();
+  if(flash>0){ctx.fillStyle='rgba(255,255,255,'+(flash*.5)+')';ctx.fillRect(0,0,SZ,SZ);}
+  if(paused&&state==='play'){ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,SZ,SZ);ctx.fillStyle='#fff';ctx.font='800 40px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⏸ Paused',SZ/2,SZ/2);}
+}
+
+/* ---- loop ---- */
+resetGame();state='menu';
+function loop(ms){
+  const dt=Math.min(.05,(ms-last)/1000||0);last=ms;
+  if(flash>0)flash-=dt;
+  for(let i=ghosts.length-1;i>=0;i--){ghosts[i].life-=dt;if(ghosts[i].life<=0)ghosts.splice(i,1);}
+  if(state==='play'&&alive&&!paused){
+    stepT=autoMode?AUTO_STEP:BASE;
+    if(keysMode&&!replaying&&sHeld&&!wHeld){
+      acc+=dt;
+      while(acc>=stepT){acc-=stepT;if(!undoStep())break;}
+    }else if(!keysMode||wHeld||replaying){
+      acc+=dt;
+      while(acc>=stepT&&alive&&state==='play'){acc-=stepT;step();}
+    }
+  }
+  draw(ms/1000);
+  requestAnimationFrame(loop);
+}
+stepT=BASE;
+requestAnimationFrame(loop);
+})();
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+App name: Snake Game
+Short description (80 chars): Classic snake game with swipe and on-screen key controls.
+Full description:
+Play the classic snake game on your phone.
+
+• Control the snake with a swipe or with on-screen keys.
+• Eat different fruits to grow; the snake changes colour as it grows.
+• Settings: sound on/off, background theme, plain or dotted snake and colour choice, fruit mode.
+• Pause any time. No ads, no sign-in, works offline.
+Category: Games > Arcade   Contains ads: No   Price: Free
